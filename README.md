@@ -1,0 +1,24 @@
+# sql_renderer
+
+[![Package Version](https://img.shields.io/hexpm/v/sql_renderer)](https://hex.pm/packages/sql_renderer)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/sql_renderer/)
+
+```sh
+gleam add sql_renderer@1
+```
+```gleam
+import sql_renderer
+
+pub fn main() -> Nil {
+  // TODO: An example of the project in use
+}
+```
+
+Further documentation can be found at <https://hexdocs.pm/sql_renderer>.
+
+## Development
+
+```sh
+gleam run   # Run the project
+gleam test  # Run the tests
+```
