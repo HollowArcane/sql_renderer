@@ -10,6 +10,7 @@ packages = [
   { name = "glexer", version = "2.3.0", build_tools = ["gleam"], requirements = ["gleam_stdlib", "splitter"], otp_app = "glexer", source = "hex", outer_checksum = "40A1FB0919FA080AD6C5809B4C7DBA545841CAAC8168FACDFA0B0667C22475CC" },
   { name = "simplifile", version = "2.3.0", build_tools = ["gleam"], requirements = ["filepath", "gleam_stdlib"], otp_app = "simplifile", source = "hex", outer_checksum = "0A868DAC6063D9E983477981839810DC2E553285AB4588B87E3E9C96A7FB4CB4" },
   { name = "splitter", version = "1.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "splitter", source = "hex", outer_checksum = "05564A381580395DCDEFF4F88A64B021E8DAFA6540AE99B4623962F52976AA9D" },
+  { name = "toolkit_util", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], source = "local", path = "../toolkit_util" },
 ]
 
 [requirements]
@@ -18,3 +19,4 @@ glance = { version = ">= 5.0.1 and < 6.0.0" }
 gleam_stdlib = { version = ">= 0.44.0 and < 2.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
 simplifile = { version = ">= 2.3.0 and < 3.0.0" }
+toolkit_util = { path = "../toolkit_util" }

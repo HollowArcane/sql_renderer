@@ -1,4 +1,6 @@
 + do not create external functions
+-! handle variable autonaming for unnamed function argument
+
 - set Numeric as Int alias for better DX
 - set Varchar as String alias for better DX
 - set Bool as Bool alias for better DX
@@ -12,6 +14,7 @@
 - create constant mapping registry for constants, type aliases and externals
 - allow use of custom types as table / custom psql types
 - make a scope based assignment optimisation
+- reorder function call arguments based on label
 
 - allow callbacks maybe?
 - allow use sugar
