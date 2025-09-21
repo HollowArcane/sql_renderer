@@ -1,0 +1,18 @@
++ do not create external functions
+- set Numeric as Int alias for better DX
+- set Varchar as String alias for better DX
+- set Bool as Bool alias for better DX
+- set Array as List alias for better DX
+- handle errors
+- handle function body
+- allow tuples?
+- allow lists
+- find a way to handle global variables like TG_OP
+- find a way to generate a trigger or a procedure
+- create constant mapping registry for constants, type aliases and externals
+- allow use of custom types as table / custom psql types
+- make a scope based assignment optimisation
+
+- allow callbacks maybe?
+- allow use sugar
+- allow assert as raise exception ?
