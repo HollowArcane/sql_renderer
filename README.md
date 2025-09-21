@@ -1,24 +1,25 @@
 # sql_renderer
+A tool to transpile gleam code into sql code
+!!! Please do not use as it is still in development (like really early development)
 
-[![Package Version](https://img.shields.io/hexpm/v/sql_renderer)](https://hex.pm/packages/sql_renderer)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/sql_renderer/)
-
-```sh
-gleam add sql_renderer@1
-```
+The following code
 ```gleam
-import sql_renderer
+import sql_renderer/types
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
+@external(erlang, "sql", "SUBSTRING")
+pub fn substring(buffer: types.Varchar, start_pos: types.Integer, len: types.Integer) -> types.Varchar
+
+pub fn fn_mid2(buffer: types.Varchar, start_pos: types.Integer, len: types.Integer) -> types.Varchar
+{
+    substring(buffer, start_pos, len)
 }
 ```
 
-Further documentation can be found at <https://hexdocs.pm/sql_renderer>.
-
-## Development
-
-```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+```sql
+CREATE OR REPLACE FUNCTION fn_mid2 (buffer VARCHAR, start_pos INTEGER, len INTEGER) RETURNS VARCHAR AS $$
+BEGIN
+    RETURN substring(buffer, start_pos, len);
+END;
+$$ LANGUAGE plpgsql
 ```
+
