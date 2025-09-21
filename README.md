@@ -1,7 +1,7 @@
 # sql_renderer
 A tool to transpile gleam code into sql code
 
-#####!!! Please do not use as it is still in development (like really early development)
+####!!! Please do not use as it is still in development (like really early development)
 
 The following code
 ```gleam
