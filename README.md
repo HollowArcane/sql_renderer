@@ -1,7 +1,7 @@
 # sql_renderer
 A tool to transpile gleam code into sql code
 
-##### !!! Please do not use as it is still in development (like really early development)
+#### !!! Please do not use as it is still in development (like really early development)
 
 The following code
 ```gleam
@@ -15,7 +15,7 @@ pub fn fn_mid2(buffer: types.Varchar, start_pos: types.Integer, len: types.Integ
     substring(buffer, start_pos, len)
 }
 ```
-
+turns into
 ```sql
 CREATE OR REPLACE FUNCTION fn_mid2 (buffer VARCHAR, start_pos INTEGER, len INTEGER) RETURNS VARCHAR AS $$
 BEGIN
