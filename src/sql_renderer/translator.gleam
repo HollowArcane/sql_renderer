@@ -1,11 +1,13 @@
-import toolkit_util/recursions
+import toolkit_util/lists
+import gleam/pair
+import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
 import gleam/string
 import given
 import gleam/option.{Some, None}
 import gleam/result
-import sql_renderer/renderer.{SQLArgument, NativeType, Varchar, Integer}
+import sql_renderer/renderer.{SQLArgument, NativeType, Varchar, Integer, type SQLVariable}
 import gleam/list
 import glance.{Definition, Function, type FunctionParameter, FunctionParameter, Named, Discarded, type Type, type Statement, type Expression}
 
@@ -26,10 +28,25 @@ pub fn translate(module: glance.Module)
     // types_aliases / constant -> hints to replace certain values
     let glance.Module(imports:_, custom_types:_, type_aliases:_, constants:_, functions:) = module
     
+    let constant_map = dict.new()
+    // register all functions
+    let constant_map = {
+        use constant_map, function <- list.fold(functions, from: constant_map)
+        case extract_external_attribute(function)
+        {
+            Error(_) -> constant_map
+            Ok(var_name) -> constant_map |> dict.insert(
+                function.definition.name,
+                renderer.SQLVariable(var_name, NativeType(Varchar))
+            )
+        }
+    }
+    echo constant_map
+
     use elements <- result.try({
         use elements, function <- list.try_fold(functions, from: [])
         use function <- result.try(
-            translate_function(function)
+            translate_function(function, constant_map)
         )
          
         case function
@@ -94,19 +111,19 @@ fn translate_argument(argument: FunctionParameter, span)
     } |> Ok
 }
 
-fn translate_body_loop(body: List(Statement), translated: List(renderer.SQLStatement))
+fn translate_body_loop(body: List(Statement), constant_map: Dict(String, SQLVariable), translated: List(renderer.SQLStatement))
 {
     case body
     {
         [] -> Ok([])
 
         [glance.Expression(expression)] -> {
-            use expression <- result.map(expression |> translate_expression)
+            use #(expression, constant_map) <- result.map(expression |> translate_expression(constant_map))
             [renderer.Return(expression), ..translated]
         }
 
         [ glance.Assignment(value:, ..) ] -> {
-            use expression <- result.map(value |> translate_expression)
+            use #(expression, constant_map) <- result.map(value |> translate_expression(constant_map))
             [renderer.Return(expression), ..translated]
         }
 
@@ -115,7 +132,7 @@ fn translate_body_loop(body: List(Statement), translated: List(renderer.SQLState
         }
 
         [statement, ..rest] -> {
-            use statement <- result.try(case statement
+            use #(statement, constant_map) <- result.try(case statement
             {
                 glance.Use(location:, patterns:_, function:_) -> 
                     Error(TranslationError(span: location, error:"use syntax is not supported"))
@@ -125,44 +142,55 @@ fn translate_body_loop(body: List(Statement), translated: List(renderer.SQLState
                 glance.Assert(location:, expression:_, message:_) ->
                     Error(TranslationError(span: location, error:"assert syntax is not supported"))
 
-                glance.Expression(expression) ->  expression |> translate_expression |> result.map(renderer.Expression)
+                glance.Expression(expression) ->  expression |> translate_expression(constant_map) |> result.map(pair.map_first(_, renderer.Expression))
             })
-            translate_body_loop(rest, [statement, ..translated])
+            translate_body_loop(rest, constant_map, [statement, ..translated])
         }
     }
 }
 
-fn translate_body(body: List(Statement))
-{ translate_body_loop(body, []) }
+fn translate_body(body: List(Statement), constant_map)
+{ translate_body_loop(body, constant_map, []) }
 
-fn translate_expression(expression: Expression)
+fn translate_expression(
+    expression: Expression,
+    constant_map: Dict(String, SQLVariable)
+) -> Result(#(renderer.SQLExpression, Dict(String, SQLVariable)), TranslationError)
 {
     case expression
     {
         glance.Int(location:_, value:) -> {
             let assert Ok(value) = int.parse(value)
-            Ok(renderer.NumericIntLiteral(value))
+            Ok(#(renderer.NumericIntLiteral(value), constant_map))
         }
 
         glance.Float(location:_, value:) -> {
             let assert Ok(value) = float.parse(value)
-            Ok(renderer.NumericFloatLiteral(value))
+            Ok(#(renderer.NumericFloatLiteral(value), constant_map))
         }
 
-        glance.String(location:_, value:) -> Ok(renderer.VarcharLiteral(value))
+        glance.String(location:_, value:) ->
+            Ok(#(renderer.VarcharLiteral(value), constant_map))
 
-        glance.Variable(location:_, name:) -> Ok(renderer.VariableCall(renderer.SQLVariable(name:, type_: renderer.NativeType( renderer.Varchar )))) // REGISTRY SHOULD BE IMPLEMENTED HERE
+        glance.Variable(location:_, name:) -> case constant_map |> dict.get(name)
+        {
+            Ok(var) -> Ok(#(renderer.VariableCall(var), constant_map))
+            // error means it's not a global constant, rather a local variable
+            Error(_) -> Ok(#(renderer.VariableCall(renderer.SQLVariable(
+                name:, type_: NativeType(Varchar) // maybe this type is not necessary
+            )), constant_map))
+        }
 
         glance.NegateInt(location:, value:) -> case value
         {
             glance.Int(location:_, value:) -> {
                 let assert Ok(value) = int.parse(value)
-                Ok(renderer.NumericIntLiteral(-value))
+                Ok(#(renderer.NumericIntLiteral(-value), constant_map))
             }
 
             glance.Float(location:_, value:) -> {
                 let assert Ok(value) = float.parse(value)
-                Ok(renderer.NumericFloatLiteral(-1. *. value))
+                Ok(#(renderer.NumericFloatLiteral(-1. *. value), constant_map))
             }
 
             _ -> Error(TranslationError(span: location,
@@ -216,21 +244,23 @@ fn translate_expression(expression: Expression)
             ))
 
         glance.Call(location:, function:, arguments:) -> {
-            use function <- result.try(
-                function |> translate_expression
+            use #(function, constant_map) <- result.try(
+                function |> translate_expression(constant_map)
             )
-            use arguments <- result.try({
-                use arg <- list.try_map(arguments)
+            use #(constant_map, arguments) <- result.try({
+                use constant_map, arg <- lists.try_map_fold(arguments, constant_map)
                 case arg
                 {
-                    glance.LabelledField(label:_, item:) -> translate_expression(item)
-                    glance.ShorthandField(label:) -> translate_expression(label |> glance.Variable(location:))
-                    glance.UnlabelledField(item:) -> translate_expression(item)
+                    glance.LabelledField(label:_, item:) -> item |> translate_expression(constant_map) |> result.map(pair.swap)
+
+                    glance.ShorthandField(label:) -> label |> glance.Variable(location:) |> translate_expression(constant_map) |> result.map(pair.swap)
+
+                    glance.UnlabelledField(item:) -> item |> translate_expression(constant_map) |> result.map(pair.swap)
                 }
                 
             })
 
-            Ok( renderer.FunctionCall(function:, arguments:) )
+            Ok(#(renderer.FunctionCall(function:, arguments:), constant_map))
         }
 
         glance.TupleIndex(location:, tuple:_, index:_) -> 
@@ -265,7 +295,7 @@ fn translate_expression(expression: Expression)
     }
 }
 
-fn translate_function(function: glance.Definition(glance.Function))
+fn translate_function(function: glance.Definition(glance.Function), constant_map: Dict(String, SQLVariable))
 {
     let Definition(attributes:, definition:) = function
     let Function(location:, name:, publicity:_, parameters:, return:, body:) = definition
@@ -286,14 +316,26 @@ fn translate_function(function: glance.Definition(glance.Function))
     let args = list.reverse(args)
     use return_type <- result.try(return |> translate_type)
 
-    use <- given.that(case attributes
-    {
-        [glance.Attribute(name: "external", arguments: [
-            glance.Variable(..), glance.String(value: "sql", ..), glance.String(..)
-        ])] -> True
-        _ -> False
-    }, return: fn() {Ok(None)})
+    use _ <- given.ok(
+        extract_external_attribute(function), // don't translate body if it is an external function
+        return: fn(_) {Ok(None)}
+    )
 
-    use body <- result.try(body |> translate_body)
+    use body <- result.try(body |> translate_body(constant_map))
     Some(renderer.SQLFunction(name:, args:, return_type:, body:)) |> Ok
+}
+
+pub fn extract_external_attribute(function: glance.Definition(any))
+{
+    let Definition(attributes:, definition:_) = function
+    use attribute <- list.find_map(attributes)
+    case attribute
+    {
+        glance.Attribute(name: "external", arguments: [
+            glance.Variable(..),
+            glance.String(value: "sql", ..),
+            glance.String(value: external_name, ..)
+        ]) -> Ok(external_name)
+        _ -> Error(Nil)
+    }
 }
