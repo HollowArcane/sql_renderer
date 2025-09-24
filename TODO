@@ -1,4 +1,5 @@
 + do not create external functions
+- fix constant_map by storing expression instead of variables, this will allow to register gleam constants as well as gleam external functions
 - make registry scope based
 -! handle variable autonaming for unnamed function argument
 
