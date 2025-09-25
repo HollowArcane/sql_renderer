@@ -1,18 +1,24 @@
 + do not create external functions
-- fix constant_map by storing expression instead of variables, this will allow to register gleam constants as well as gleam external functions
++ fix constant_map by storing expression instead of variables, this will allow to register gleam constants as well as gleam external functions
++ turn registry into a custom type for easy refactoring
++ do a little bit of clean up
++ add variable declarations
++ add expressions
+- in constant registering, if the constant is referencing another existing item, it can cause problems if the referenced is not yet registered, order is importaant
+- make sure to take into account function arguments when naming new variables
+- do case statements
+
+- find a way to handle global variables like TG_OP
+- find a way to generate a trigger or a procedure
+
 - make registry scope based
 -! handle variable autonaming for unnamed function argument
 
-- set Numeric as Int alias for better DX
-- set Varchar as String alias for better DX
-- set Bool as Bool alias for better DX
 - set Array as List alias for better DX
 - handle errors
 - handle function body
 - allow tuples?
 - allow lists
-- find a way to handle global variables like TG_OP
-- find a way to generate a trigger or a procedure
 - create constant mapping registry for constants, type aliases and externals
 - allow use of custom types as table / custom psql types
 - make a scope based assignment optimisation
